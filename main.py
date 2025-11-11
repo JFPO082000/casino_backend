@@ -3,16 +3,21 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+# 1. IMPORTAMOS LOS NUEVOS ARCHIVOS DE RUTAS
+from api import auth, user
+
 # =========================
 #  APP & STATIC / TEMPLATES
 # =========================
 app = FastAPI(title="Royal Crumbs")
 
-# Ruta estática (esta ya estaba bien)
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# Ruta de plantillas (esta es la corrección)
 templates = Jinja2Templates(directory="templates")
+
+# 2. INCLUIMOS LAS RUTAS DE API EN LA APP PRINCIPAL
+app.include_router(auth.router)
+app.include_router(user.router)
+
 
 # Helper para ahorrar líneas
 def render(tpl: str, request: Request) -> HTMLResponse:
@@ -33,15 +38,8 @@ async def login_page(request: Request):
 async def register_page(request: Request):
     return render("register.html", request)
 
-@app.get("/forgot-password", response_class=HTMLResponse)
-async def forgot_password_page(request: Request):
-    return render("forgot_password.html", request)
-
-# Aliases hacia /home
-@app.get("/inicio")
-@app.get("/index")
-async def redirect_home():
-    return RedirectResponse(url="/home", status_code=302)
+# ... (Pega aquí el RESTO de tus rutas HTML que ya tenías) ...
+# ... (@app.get("/forgot-password"), @app.get("/home"), etc...)
 
 # =========================
 #  HOME / JUEGOS
@@ -269,4 +267,7 @@ async def admin_lista_blanca(request: Request):
 @app.get("/admin/promociones", response_class=HTMLResponse)
 async def admin_promociones(request: Request):
     return render("admin-promociones.html", request)
+```eof
+
+
 
