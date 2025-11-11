@@ -10,17 +10,15 @@ router = APIRouter()
 
 @router.post("/api/wallet/deposit-card")
 async def api_deposit_card(
-    # Tu HTML aún no lo pide, pero lo necesitaremos
-    # id_usuario: int = Form(), 
-    
-    # Por ahora, simularemos con el usuario 1
-    # Cuando tu <script> envíe el ID, quita esta línea:
-    id_usuario: int = 1, 
-    
-    # Tu formulario HTML (account-cartera-deposito-tarjeta.html)
-    # no tiene 'name' en los inputs. Asumiré que el monto
-    # se llama 'monto'.
-    monto: str = Form() 
+    # Tu HTML ya debe estar enviando esto desde el script
+    id_usuario: int = Form(), 
+    monto: str = Form(),
+    # Los otros campos del formulario no los usamos en el backend
+    # pero podemos recibirlos para que no den error
+    numero_tarjeta: str = Form(),
+    nombre_titular: str = Form(),
+    fecha_exp: str = Form(),
+    cvv: str = Form()
 ):
     """
     Ruta para procesar un DEPÓSITO con tarjeta.
@@ -45,7 +43,6 @@ async def api_deposit_card(
             return JSONResponse({"error": "Error de conexión"}, status_code=500)
         
         # ¡IMPORTANTE! Iniciamos una transacción.
-        # O ambos comandos (INSERT y UPDATE) funcionan, o ninguno lo hace.
         cursor = conn.cursor()
 
         # PASO 1: Registrar la transacción en la tabla 'Transaccion'
@@ -80,6 +77,74 @@ async def api_deposit_card(
         # Si algo falló, revertimos TODOS los cambios
         if conn: conn.rollback()
         print(f"🚨 API ERROR (Depósito): {e}")
+        return JSONResponse({"error": f"Error interno del servidor: {e}"}, status_code=500)
+    
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+
+# ==========================================================
+#  NUEVA RUTA: GUARDAR MÉTODO DE PAGO (CLABE)
+# ==========================================================
+@router.post("/api/wallet/save-method-bank")
+async def api_save_bank_method(
+    id_usuario: int = Form(),
+    clabe: str = Form()
+):
+    """
+    Ruta para guardar o actualizar la cuenta CLABE del usuario
+    Llamada por: account-bancaria.html
+    """
+    print(f"🔹 API: Guardando CLABE para usuario: {id_usuario}")
+    
+    # (Aquí deberías validar que la CLABE tenga 18 dígitos)
+    if len(clabe) != 18 or not clabe.isdigit():
+        return JSONResponse({"error": "La CLABE debe tener 18 dígitos numéricos."}, status_code=400)
+        
+    conn = None
+    cursor = None
+    
+    try:
+        conn = db_connect.get_connection()
+        if conn is None:
+            return JSONResponse({"error": "Error de conexión"}, status_code=500)
+        
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+        # 1. Averiguamos el id_metodo para 'Transferencia' (o 'SPEI')
+        #    Asumiré que en tu tabla 'Metodo_Pago' tienes uno llamado 'Transferencia'
+        cursor.execute("SELECT id_metodo FROM Metodo_Pago WHERE nombre = 'Transferencia'")
+        metodo = cursor.fetchone()
+        
+        if not metodo:
+            # ¡Error! No has creado los métodos de pago en tu BD
+            print("🚨 API ERROR: No se encontró 'Transferencia' en la tabla Metodo_Pago")
+            return JSONResponse({"error": "Configuración del servidor incompleta (M-404)"}, status_code=500)
+
+        id_metodo_pago = metodo['id_metodo']
+
+        # 2. Usamos 'UPSERT' (UPDATE o INSERT)
+        # Intenta actualizar el método bancario del usuario. Si no existe, lo crea.
+        cursor.execute(
+            """
+            INSERT INTO Usuario_Metodo_Pago (id_usuario, id_metodo, token_externo, fecha_registro)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (id_usuario, id_metodo) -- Si ya tiene un método bancario
+            DO UPDATE SET token_externo = EXCLUDED.token_externo,
+                          fecha_registro = EXCLUDED.fecha_registro
+            """,
+            (id_usuario, id_metodo_pago, clabe, datetime.now()) # Guardamos la CLABE como 'token_externo'
+        )
+        
+        conn.commit()
+        
+        print(f"✅ API: CLABE guardada para {id_usuario}")
+        return JSONResponse({"success": True, "message": "Método de pago guardado con éxito."})
+
+    except Exception as e:
+        if conn: conn.rollback()
+        print(f"🚨 API ERROR (Guardar CLABE): {e}")
         return JSONResponse({"error": f"Error interno del servidor: {e}"}, status_code=500)
     
     finally:
