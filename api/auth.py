@@ -1,65 +1,30 @@
 from fastapi import APIRouter, Form
-# ... (código existente) ...
-pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
-# ... (código existente) ...
-@router.post("/api/auth/register")
-async def api_register(
-# ... (código existente) ...
-    finally:
-        if cursor: cursor.close()
-        if conn: conn.close()
+from fastapi.responses import JSONResponse
+import db_connect  # Tu archivo db_connect.py
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from passlib.context import CryptContext
+from datetime import datetime # Para la fecha de registro
 
-# ==========================================================
-#  NUEVA RUTA: RECUPERAR CONTRASEÑA (SIMULACIÓN)
-# ==========================================================
-@router.post("/api/auth/forgot-password")
-async def api_forgot_password(correo: str = Form()):
+# Configura el contexto de hasheo
+# Usamos Argon2 porque bcrypt estaba dando problemas en Render
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+
+router = APIRouter()
+
+@router.post("/api/auth/login")
+async def api_login(correo: str = Form(), contrasena: str = Form()):
     """
-    Ruta para manejar la solicitud de "Olvidé mi contraseña".
-    Llamada por: forgot_password.html
+    Ruta de Login, actualizada a tu esquema 'Usuario'
     """
-    print(f"🔹 API: Solicitud de recuperación de contraseña para: {correo}")
-    
+    print(f"🔹 API: Intento de login para: {correo}")
     conn = None
-    cursor = None
-    
     try:
         conn = db_connect.get_connection()
         if conn is None:
-            # No le digas al usuario que la BD falló, solo da el mensaje genérico
-            return JSONResponse({"message": "Si este correo está registrado, recibirás un enlace de recuperación."})
+            return JSONResponse({"error": "Error de conexión con la base de datos"}, status_code=500)
         
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
-        # 1. Buscamos al usuario
-        cursor.execute("SELECT id_usuario FROM Usuario WHERE email = %s AND activo = true", (correo,))
-        usuario = cursor.fetchone()
-        
-        # 2. SIMULACIÓN
-        if usuario:
-            # --- INICIO DE SIMULACIÓN ---
-            # En un proyecto real, aquí generarías un token, lo guardarías en la BD
-            # y lo enviarías por email.
-            # Por ahora, solo lo imprimimos en la consola del servidor.
-            token_simulado = "TOKEN_SEGURO_GENERADO_AQUI_12345"
-            print(f"✅ API: SIMULACIÓN - Enviando email de reseteo a {correo} con token: {token_simulado}")
-            # --- FIN DE SIMULACIÓN ---
-        else:
-            print(f"❌ API: Solicitud de reseteo para email no existente o inactivo: {correo}")
-
-        # 3. RESPUESTA GENÉRICA
-        # Por seguridad, NUNCA le digas al usuario si el correo existía o no.
-        # Siempre devuelve el mismo mensaje de éxito.
-        return JSONResponse({"success": True, "message": "Si este correo está registrado en nuestro sistema, recibirás un enlace para recuperar tu contraseña."})
-
-    except Exception as e:
-        print(f"🚨 API ERROR (Forgot Password): {e}")
-        # Incluso si hay un error, devolvemos el mensaje genérico
-        return JSONResponse({"message": "Si este correo está registrado, recibirás un enlace de recuperación."})
-    
-    finally:
-        if cursor: cursor.close()
-        if conn: conn.close()
         
         # 1. Usamos los nombres correctos: 'Usuario', 'email', 'password_hash'
         cursor.execute(
@@ -80,7 +45,6 @@ async def api_forgot_password(correo: str = Form()):
             return JSONResponse({"error": "Esta cuenta ha sido desactivada"}, status_code=403)
 
         # 3. Verificamos la contraseña (usando 'password_hash')
-        # passlib detectará automáticamente que el hash es Argon2
         if not pwd_context.verify(contrasena, usuario["password_hash"]):
             print("❌ API: Contraseña incorrecta")
             cursor.close(); conn.close()
@@ -104,7 +68,7 @@ async def api_forgot_password(correo: str = Form()):
 
 
 # ==========================================================
-#  RUTA PARA REGISTRO (Ahora usará Argon2)
+#  RUTA PARA REGISTRO (Corregida para tu Esquema)
 # ==========================================================
 @router.post("/api/auth/register")
 async def api_register(
@@ -122,7 +86,7 @@ async def api_register(
     cursor = None
     
     try:
-        # 1. Hashear la contraseña (ahora con Argon2)
+        # 1. Hashear la contraseña
         hashed_password = pwd_context.hash(contrasena)
         
         # 2. Conectarse a la BD
@@ -169,6 +133,49 @@ async def api_register(
         if conn: conn.rollback()
         print(f"🚨 API ERROR (Register): {e}")
         return JSONResponse({"error": f"Error interno del servidor: {e}"}, status_code=500)
+    
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+# ==========================================================
+#  RUTA: RECUPERAR CONTRASEÑA (SIMULACIÓN)
+# ==========================================================
+@router.post("/api/auth/forgot-password")
+async def api_forgot_password(correo: str = Form()):
+    """
+    Ruta para manejar la solicitud de "Olvidé mi contraseña".
+    Llamada por: forgot_password.html
+    """
+    print(f"🔹 API: Solicitud de recuperación de contraseña para: {correo}")
+    
+    conn = None
+    cursor = None
+    
+    try:
+        conn = db_connect.get_connection()
+        if conn is None:
+            return JSONResponse({"message": "Si este correo está registrado, recibirás un enlace de recuperación."})
+        
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # 1. Buscamos al usuario
+        cursor.execute("SELECT id_usuario FROM Usuario WHERE email = %s AND activo = true", (correo,))
+        usuario = cursor.fetchone()
+        
+        # 2. SIMULACIÓN
+        if usuario:
+            token_simulado = "TOKEN_SEGURO_GENERADO_AQUI_12345"
+            print(f"✅ API: SIMULACIÓN - Enviando email de reseteo a {correo} con token: {token_simulado}")
+        else:
+            print(f"❌ API: Solicitud de reseteo para email no existente o inactivo: {correo}")
+
+        # 3. RESPUESTA GENÉRICA
+        return JSONResponse({"success": True, "message": "Si este correo está registrado en nuestro sistema, recibirás un enlace para recuperar tu contraseña."})
+
+    except Exception as e:
+        print(f"🚨 API ERROR (Forgot Password): {e}")
+        return JSONResponse({"message": "Si este correo está registrado, recibirás un enlace de recuperación."})
     
     finally:
         if cursor: cursor.close()
