@@ -1,48 +1,62 @@
-from fastapi import APIRouter, Form, Depends
+from fastapi import APIRouter, Form
 from fastapi.responses import JSONResponse
-import db_connect  # Importa tu conector
+import db_connect  # Tu archivo db_connect.py
 import psycopg2
 from psycopg2.extras import RealDictCursor
-# Importa la librería para hashear contraseñas (la necesitarás)
-# from passlib.context import CryptContext
+from passlib.context import CryptContext  # Para verificar contraseñas
 
-# (Opcional, pero recomendado para contraseñas)
-# pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Configura el contexto de hasheo (debe coincidir con cómo guardaste la contraseña)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Creamos un "mini-FastAPI"
+# Creamos un "router". Es como una mini-app de FastAPI
 router = APIRouter()
 
 @router.post("/api/auth/login")
 async def api_login(correo: str = Form(), contrasena: str = Form()):
     """
     Esta es la ruta de API que tu login.html llama.
+    USA LOS NOMBRES DE TU ESQUEMA SQL.
     """
     print(f"🔹 API: Intento de login para: {correo}")
     conn = None
     try:
+        # 1. Obtenemos conexión de db_connect.py
         conn = db_connect.get_connection()
         if conn is None:
             return JSONResponse({"error": "Error de conexión con la base de datos"}, status_code=500)
         
-        # RealDictCursor nos devuelve diccionarios, es más fácil
+        # 2. Creamos un cursor que devuelve diccionarios (más fácil)
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # ⚠️ ¡ATENCIÓN! Cambia 'usuarios', 'email' y 'contrasena_hash'
-        # por los nombres EXACTOS de tu tabla y columnas en Neon.
+        # 3. Buscamos al usuario SOLO POR EMAIL
+        # Usamos los nombres de tu tabla: usuarios, email
         cursor.execute(
-            "SELECT id_usuario, rol FROM usuarios WHERE email = %s AND contrasena_hash = %s", 
-            (correo, contrasena) # ¡IMPORTANTE! Debes comparar contraseñas hasheadas, no texto plano.
+            "SELECT id_usuario, rol, contrasena_hash FROM usuarios WHERE email = %s", 
+            (correo,)
         )
-        
         usuario = cursor.fetchone()
-        cursor.close()
         
         if not usuario:
-            print("❌ API: Credenciales incorrectas")
+            # Si el email no existe, cerramos todo y damos error
+            print("❌ API: Email no encontrado")
+            cursor.close()
+            conn.close()
             return JSONResponse({"error": "Correo o contraseña incorrectos"}, status_code=401)
 
-        # Devolvemos el JSON que tu login.html espera
+        # 4. Verificamos la contraseña
+        # Compara la 'contrasena' (texto plano) del formulario
+        # con la 'contrasena_hash' (hash) de la base de datos
+        if not pwd_context.verify(contrasena, usuario["contrasena_hash"]):
+            print("❌ API: Contraseña incorrecta")
+            cursor.close()
+            conn.close()
+            return JSONResponse({"error": "Correo o contraseña incorrectos"}, status_code=401)
+        
+        # 5. ¡Éxito! Cerramos y devolvemos el JSON
+        cursor.close()
+        
         print(f"✅ API: Login exitoso para {usuario['id_usuario']}")
+        # Devolvemos el JSON que tu login.html espera
         return JSONResponse({
             "id_usuario": usuario['id_usuario'],
             "rol": usuario['rol']
@@ -54,11 +68,3 @@ async def api_login(correo: str = Form(), contrasena: str = Form()):
     finally:
         if conn:
             conn.close()
-
-# -----------------------------------------------------------------
-# PRÓXIMO PASO: Aquí crearíamos la ruta para registrar
-# -----------------------------------------------------------------
-# @router.post("/api/auth/register")
-# async def api_register(...):
-#     # ... (Lógica para INSERT INTO usuarios ...)
-#     pass
