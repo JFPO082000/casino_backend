@@ -63,8 +63,73 @@ async def api_login(correo: str = Form(), contrasena: str = Form()):
         })
 
     except Exception as e:
-        print(f"🚨 API ERROR: {e}")
+        print(f"🚨 API ERROR (Login): {e}")
         return JSONResponse({"error": f"Error interno del servidor: {e}"}, status_code=500)
     finally:
+        if conn:
+            conn.close()
+
+
+# ==========================================================
+#  NUEVA RUTA PARA REGISTRO
+# ==========================================================
+@router.post("/api/auth/register")
+async def api_register(
+    correo: str = Form(),
+    curp: str = Form(),
+    nombre: str = Form(),
+    apellido: str = Form(),
+    contrasena: str = Form()
+):
+    """
+    Esta es la ruta de API que tu register.html llama.
+    Usa los nombres de tu esquema SQL.
+    """
+    print(f"🔹 API: Intento de registro para: {correo}")
+    conn = None
+    
+    try:
+        # 1. Hashear la contraseña ANTES de guardarla
+        hashed_password = pwd_context.hash(contrasena)
+        
+        # 2. Conectarse a la BD
+        conn = db_connect.get_connection()
+        if conn is None:
+            return JSONResponse({"error": "Error de conexión con la base de datos"}, status_code=500)
+        
+        cursor = conn.cursor()
+        
+        # 3. Ejecutar el INSERT
+        # Usamos los nombres de tu tabla: usuarios, nombre, apellido, email, curp, contrasena_hash, rol, saldo_total
+        # El rol por defecto es 'usuario' y el saldo 0.
+        cursor.execute(
+            """
+            INSERT INTO usuarios (nombre, apellido, email, curp, contrasena_hash, rol, saldo_total)
+            VALUES (%s, %s, %s, %s, %s, 'usuario', 0.00)
+            """,
+            (nombre, apellido, correo, curp, hashed_password)
+        )
+        
+        # 4. Confirmar la transacción
+        conn.commit()
+        
+        print(f"✅ API: Registro exitoso para {correo}")
+        return JSONResponse({"success": True, "message": "Usuario registrado exitosamente"})
+
+    except psycopg2.errors.UniqueViolation as e:
+        # Error específico si el email o curp ya existen (si los tienes como UNIQUE en tu BD)
+        conn.rollback() # Revertir la transacción
+        print(f"❌ API: Conflicto de datos (email o curp ya existen): {e}")
+        return JSONResponse({"error": "El correo electrónico o la CURP ya están registrados."}, status_code=409)
+        
+    except Exception as e:
+        if conn:
+            conn.rollback() # Revertir en caso de cualquier otro error
+        print(f"🚨 API ERROR (Register): {e}")
+        return JSONResponse({"error": f"Error interno del servidor: {e}"}, status_code=500)
+    
+    finally:
+        if cursor:
+            cursor.close()
         if conn:
             conn.close()
