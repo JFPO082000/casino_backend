@@ -13,7 +13,44 @@ router = APIRouter()
 # ==========================================================
 @router.get("/api/admin/stats")
 async def api_get_admin_stats():
-[Immersive content redacted for brevity.]
+    """
+    Obtiene estadísticas clave para el dashboard del administrador.
+    Llamada por: admin-info-general.html
+    """
+    print("🔹 API Admin: Pidiendo estadísticas generales")
+    conn = None
+    try:
+        conn = db_connect.get_connection()
+        if conn is None:
+            return JSONResponse({"error": "Error de conexión"}, status_code=500)
+        
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # 1. Total de usuarios (solo jugadores)
+        cursor.execute("SELECT COUNT(*) as total_users FROM Usuario WHERE rol = 'Jugador'")
+        total_users = cursor.fetchone()['total_users']
+        
+        # 2. Total de juegos activos
+        cursor.execute("SELECT COUNT(*) as active_games FROM Juego WHERE activo = true")
+        active_games = cursor.fetchone()['active_games']
+        
+        # 3. Total de depósitos hoy
+        cursor.execute(
+            "SELECT COALESCE(SUM(monto), 0) as deposits_today FROM Transaccion WHERE tipo_transaccion = 'Depósito' AND estado = 'Completado' AND fecha_transaccion >= CURRENT_DATE"
+        )
+        deposits_today = cursor.fetchone()['deposits_today']
+        
+        cursor.close()
+        
+        return JSONResponse({
+            "total_users": total_users,
+            "active_games": active_games,
+            "deposits_today": float(deposits_today)
+        })
+
+    except Exception as e:
+        print(f"🚨 API ERROR (Admin Stats): {e}")
+        return JSONResponse({"error": f"Error interno: {e}"}, status_code=500)
     finally:
         if conn: conn.close()
 
