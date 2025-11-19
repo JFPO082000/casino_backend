@@ -170,7 +170,9 @@ async def api_forgot_password(request_data: ForgotPasswordRequest):
             print("🚨 API ERROR (Forgot Password): No se pudo conectar a la base de datos.")
             return JSONResponse({"error": "Error interno del servidor."}, status_code=500)
         
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        # --- CORRECCIÓN FINAL ---
+        # Se elimina el argumento `cursor_factory`. Esta configuración se maneja a nivel de conexión.
+        cursor = conn.cursor()
         
         # 1. Buscamos al usuario por correo
         cursor.execute("SELECT id_usuario FROM Usuario WHERE email = %s AND activo = true", (request_data.correo,))
