@@ -2,6 +2,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from app.db import db_connect # <-- Importamos la conexión a la BD
+import psycopg2              # <-- Importamos para manejar errores de BD
 
 # =========================
 #  APP & STATIC / TEMPLATES
@@ -40,6 +42,47 @@ from api.auth import router as auth_router
 app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
 # app.include_router(user_router.router, prefix="/api/user", tags=["Usuarios"])
 # ... (Puedes descomentar las otras rutas una vez que el login funcione)
+
+# --- AÑADIDO: ENDPOINT PARA OBTENER DATOS DEL USUARIO ---
+@app.get("/api/user/{user_id}")
+async def get_user_data(user_id: int):
+    """
+    Esta ruta busca en la base de datos la información de un usuario
+    por su ID y también su saldo, y los devuelve en un JSON.
+    """
+    print(f"🔹 API: Solicitud de datos para el usuario ID: {user_id}")
+    conn = None
+    cursor = None
+    try:
+        conn = db_connect.get_connection()
+        if conn is None:
+            return JSONResponse({"error": "Error de conexión a la base de datos"}, status_code=500)
+        
+        cursor = conn.cursor()
+        # Consulta que une las tablas Usuario y Saldo para obtener todos los datos
+        cursor.execute(
+            """
+            SELECT u.nombre, u.apellido, u.email, s.saldo_actual
+            FROM Usuario u
+            JOIN Saldo s ON u.id_usuario = s.id_usuario
+            WHERE u.id_usuario = %s
+            """,
+            (user_id,)
+        )
+        user_data = cursor.fetchone()
+
+        if not user_data:
+            return JSONResponse({"error": "Usuario no encontrado"}, status_code=404)
+
+        # Devolvemos los datos en un formato JSON claro
+        return {"nombre": user_data[0], "apellido": user_data[1], "email": user_data[2], "saldo": user_data[3]}
+
+    except Exception as e:
+        print(f"🚨 API ERROR (get_user_data): {e}")
+        return JSONResponse({"error": "Error interno del servidor"}, status_code=500)
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
 
 
 # =========================
