@@ -37,8 +37,8 @@ async def api_login(user_data: UserLogin):
     Ruta de Login que valida los datos con Pydantic.
     """
     # --- MARCA DE VERSIÓN ---
-    # Añadimos este print para confirmar que Render está usando el archivo más reciente.
-    print("✅ Ejecutando la versión más reciente del endpoint de login.")
+    # Cambiamos este mensaje para forzar la actualización en Render.
+    print("✅✅✅ DESPLIEGUE FINAL - Versión corregida del login está en ejecución.")
     print(f"🔹 API: Intento de login para: {user_data.correo}")
     conn = None
     cursor = None
