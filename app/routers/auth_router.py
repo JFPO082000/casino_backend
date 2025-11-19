@@ -13,7 +13,10 @@ class UserLogin(BaseModel):
 
 
 # Creamos un "router" para organizar las rutas de autenticación
-router = APIRouter()
+router = APIRouter(
+    # El prefijo ya se define en main.py, así que aquí no es estrictamente necesario,
+    # pero es buena práctica para la organización.
+)
 
 
 @router.post("/login")
