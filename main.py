@@ -8,6 +8,9 @@ from fastapi.templating import Jinja2Templates
 # =========================
 app = FastAPI(title="Royal Crumbs")
 
+# --- MARCA DE VERSIÓN PARA DESPLIEGUE ---
+print("✅✅✅ INICIANDO APLICACIÓN - VERSIÓN MÁS RECIENTE ✅✅✅")
+
 # --- CORRECCIÓN ---
 # Se ajustan las rutas para que coincidan con la estructura real del proyecto.
 # Los archivos estáticos están en la carpeta 'static' a nivel raíz.
