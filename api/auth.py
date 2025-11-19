@@ -139,7 +139,8 @@ async def api_register(user_data: UserRegister):
     except Exception as e:
         if conn: conn.rollback()
         print(f"🚨 API ERROR (Register): {e}")
-        return JSONResponse({"error": f"Error interno del servidor: {e}"}, status_code=500)
+        # CORRECCIÓN: Se envía un string simple en lugar del objeto de la excepción.
+        return JSONResponse({"error": "Error interno del servidor al intentar registrar."}, status_code=500)
     
     finally:
         if cursor: cursor.close()
