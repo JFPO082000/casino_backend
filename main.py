@@ -25,24 +25,17 @@ def render(tpl: str, request: Request) -> HTMLResponse:
 # =========================
 #  RUTAS DE LÓGICA / API
 # =========================
-from app.routers import (
-    auth_router,
-    user_router,
-    transacciones_router,
-    juegos_router,
-    soporte_router,
-    bonos_router
-)
+# --- CORRECCIÓN CRÍTICA DE IMPORTACIÓN ---
+# Se importa directamente desde la carpeta 'api' para evitar ambigüedades
+# con posibles archivos duplicados en la carpeta 'app'.
+from api import auth_router #, user_router, transacciones_router, etc.
 
 # =========================
 #  RUTAS DE LÓGICA / API
 # =========================
 app.include_router(auth_router.router, prefix="/api/auth", tags=["Auth"])
-app.include_router(user_router.router, prefix="/api/user", tags=["Usuarios"])
-app.include_router(transacciones_router.router, prefix="/api/transacciones", tags=["Transacciones"])
-app.include_router(juegos_router.router, prefix="/api/juegos", tags=["Juegos"])
-app.include_router(soporte_router.router, prefix="/api/soporte", tags=["Soporte"])
-app.include_router(bonos_router.router, prefix="/api/bonos", tags=["Bonos"])
+# app.include_router(user_router.router, prefix="/api/user", tags=["Usuarios"])
+# ... (Puedes descomentar las otras rutas una vez que el login funcione)
 
 
 # =========================
