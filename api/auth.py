@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Form, Depends
+from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, constr
 from app.db import db_connect  # <-- ¡CORRECCIÓN CLAVE!
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -17,6 +17,19 @@ router = APIRouter()
 class UserLogin(BaseModel):
     correo: EmailStr
     contrasena: str
+
+# Modelo Pydantic para validar los datos de entrada del registro
+class UserRegister(BaseModel):
+    correo: EmailStr
+    curp: constr(min_length=18, max_length=18) # Valida que la CURP tenga 18 caracteres
+    nombre: str
+    apellido: str
+    contrasena: str
+
+# Modelo Pydantic para la recuperación de contraseña
+class ForgotPasswordRequest(BaseModel):
+    correo: EmailStr
+
 
 @router.post("/login")
 async def api_login(user_data: UserLogin):
@@ -70,24 +83,18 @@ async def api_login(user_data: UserLogin):
 # ==========================================================
 #  RUTA PARA REGISTRO (Corregida para tu Esquema)
 # ==========================================================
-@router.post("/api/auth/register")
-async def api_register(
-    correo: str = Form(),
-    curp: str = Form(), 
-    nombre: str = Form(),
-    apellido: str = Form(),
-    contrasena: str = Form()
-):
+@router.post("/register")
+async def api_register(user_data: UserRegister):
     """
-    Ruta de Registro, actualizada a tu esquema 'Usuario' y 'Saldo'
+    Ruta de Registro que valida los datos con Pydantic.
     """
-    print(f"🔹 API: Intento de registro para: {correo}")
+    print(f"🔹 API: Intento de registro para: {user_data.correo}")
     conn = None
     cursor = None
     
     try:
         # 1. Hashear la contraseña
-        hashed_password = pwd_context.hash(contrasena)
+        hashed_password = pwd_context.hash(user_data.contrasena)
         
         # 2. Conectarse a la BD
         conn = db_connect.get_connection()
@@ -103,7 +110,7 @@ async def api_register(
             VALUES (%s, %s, %s, %s, %s, 'Jugador', %s, true)
             RETURNING id_usuario
             """,
-            (nombre, apellido, curp, correo, hashed_password, datetime.now())
+            (user_data.nombre, user_data.apellido, user_data.curp, user_data.correo, hashed_password, datetime.now())
         )
         
         # Obtenemos el ID del usuario que acabamos de crear
@@ -121,7 +128,7 @@ async def api_register(
         # 5. Confirmar la transacción (ambos inserts)
         conn.commit()
         
-        print(f"✅ API: Registro exitoso para {correo}, ID: {new_user_id}")
+        print(f"✅ API: Registro exitoso para {user_data.correo}, ID: {new_user_id}")
         return JSONResponse({"success": True, "message": "Usuario registrado exitosamente"})
 
     except psycopg2.errors.UniqueViolation as e:
@@ -141,13 +148,13 @@ async def api_register(
 # ==========================================================
 #  RUTA: RECUPERAR CONTRASEÑA (SIMULACIÓN)
 # ==========================================================
-@router.post("/api/auth/forgot-password")
-async def api_forgot_password(correo: str = Form()):
+@router.post("/forgot-password")
+async def api_forgot_password(request_data: ForgotPasswordRequest):
     """
     Ruta para manejar la solicitud de "Olvidé mi contraseña".
-    Llamada por: forgot_password.html
+    Valida los datos con Pydantic.
     """
-    print(f"🔹 API: Solicitud de recuperación de contraseña para: {correo}")
+    print(f"🔹 API: Solicitud de recuperación de contraseña para: {request_data.correo}")
     
     conn = None
     cursor = None
@@ -160,15 +167,15 @@ async def api_forgot_password(correo: str = Form()):
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # 1. Buscamos al usuario por correo
-        cursor.execute("SELECT id_usuario FROM Usuario WHERE email = %s AND activo = true", (correo,))
+        cursor.execute("SELECT id_usuario FROM Usuario WHERE email = %s AND activo = true", (request_data.correo,))
         usuario = cursor.fetchone()
         
         # 2. SIMULACIÓN
         if usuario:
             token_simulado = "TOKEN_SEGURO_GENERADO_AQUI_12345"
-            print(f"✅ API: SIMULACIÓN - Enviando email de reseteo a {correo} con token: {token_simulado}")
+            print(f"✅ API: SIMULACIÓN - Enviando email de reseteo a {request_data.correo} con token: {token_simulado}")
         else:
-            print(f"❌ API: Solicitud de reseteo para email no existente o inactivo: {correo}")
+            print(f"❌ API: Solicitud de reseteo para email no existente o inactivo: {request_data.correo}")
 
         # 3. RESPUESTA GENÉRICA
         return JSONResponse({"success": True, "message": "Si este correo está registrado en nuestro sistema, recibirás un enlace para recuperar tu contraseña."})
