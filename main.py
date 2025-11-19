@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from app.db import db_connect # <-- Importamos la conexión a la BD cambios
+from app.db import db_connect # <-- Importamos la conexión a la BD cambios 2
 import psycopg2              # <-- Importamos para manejar errores de BD
 
 # =========================
