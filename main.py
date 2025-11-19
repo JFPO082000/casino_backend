@@ -35,7 +35,9 @@ from api.auth import router as auth_router
 # =========================
 #  RUTAS DE LÓGICA / API
 # =========================
-app.include_router(auth_router.router, prefix="/api/auth", tags=["Auth"])
+# CORRECCIÓN FINAL: `app.include_router` espera el objeto APIRouter directamente.
+# Como `auth_router` ya es el router, eliminamos el `.router` extra.
+app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
 # app.include_router(user_router.router, prefix="/api/user", tags=["Usuarios"])
 # ... (Puedes descomentar las otras rutas una vez que el login funcione)
 
