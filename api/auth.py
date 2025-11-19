@@ -38,10 +38,13 @@ async def api_login(user_data: UserLogin):
     """
     print(f"🔹 API: Intento de login para: {user_data.correo}")
     conn = None
+    cursor = None
     try:
         conn = db_connect.get_connection()
         if conn is None:
-            return JSONResponse({"error": "Error de conexión con la base de datos"}, status_code=500)
+            # Si no podemos conectar, es un error crítico del servidor.
+            print("🚨 API ERROR (Login): No se pudo obtener conexión a la base de datos.")
+            return JSONResponse({"error": "Error interno del servidor"}, status_code=500)
         
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
@@ -62,9 +65,7 @@ async def api_login(user_data: UserLogin):
             print("❌ API: Cuenta inactiva")
             return JSONResponse({"error": "Esta cuenta ha sido desactivada"}, status_code=403)
 
-        # 4. ¡Éxito! El cursor se cerrará en el bloque finally
-        cursor.close()
-        
+        # 4. ¡Éxito!
         print(f"✅ API: Login exitoso para {usuario['id_usuario']}")
         return JSONResponse({
             "id_usuario": usuario['id_usuario'],
@@ -72,12 +73,11 @@ async def api_login(user_data: UserLogin):
         })
 
     except Exception as e:
-        if conn: conn.rollback()
         print(f"🚨 API ERROR (Login): {e}")
-        return JSONResponse({"error": f"Error interno del servidor: {e}"}, status_code=500)
+        return JSONResponse({"error": "Error interno del servidor"}, status_code=500)
     finally:
-        if conn:
-            conn.close()
+        if cursor: cursor.close()
+        if conn: conn.close()
 
 
 # ==========================================================
@@ -161,8 +161,11 @@ async def api_forgot_password(request_data: ForgotPasswordRequest):
     
     try:
         conn = db_connect.get_connection()
+        # Si la conexión falla, es un error interno. Devolvemos un 500.
+        # La respuesta genérica se da al final para no revelar si el email existe.
         if conn is None:
-            return JSONResponse({"message": "Si este correo está registrado, recibirás un enlace de recuperación."})
+            print("🚨 API ERROR (Forgot Password): No se pudo conectar a la base de datos.")
+            return JSONResponse({"error": "Error interno del servidor."}, status_code=500)
         
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
@@ -182,7 +185,7 @@ async def api_forgot_password(request_data: ForgotPasswordRequest):
 
     except Exception as e:
         print(f"🚨 API ERROR (Forgot Password): {e}")
-        return JSONResponse({"message": "Si este correo está registrado, recibirás un enlace de recuperación."})
+        return JSONResponse({"error": "Error interno del servidor."}, status_code=500)
     
     finally:
         if cursor: cursor.close()
