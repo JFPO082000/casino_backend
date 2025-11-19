@@ -38,20 +38,33 @@
       loginForm.addEventListener("submit", async (event) => {
         event.preventDefault(); // Evita que el formulario se envíe de la forma tradicional
 
+        // --- INICIO DE LA CORRECCIÓN ---
+        // 1. Obtenemos los datos del formulario y los convertimos a un objeto JavaScript.
         const formData = new FormData(loginForm);
+        const data = Object.fromEntries(formData.entries());
+        // Renombramos los campos para que coincidan con el modelo Pydantic (correo, contrasena)
+        data.correo = data.email;
+        data.contrasena = data.password;
+        delete data.email;
+        delete data.password;
+
         errorMessageDiv.style.display = "none"; // Ocultar errores previos
 
         try {
           const response = await fetch("/api/auth/login", {
             method: 'POST',
-            body: formData
+            headers: {
+              'Content-Type': 'application/json' // 2. Indicamos que estamos enviando JSON
+            },
+            body: JSON.stringify(data) // 3. Convertimos el objeto a una cadena JSON
           });
+          // --- FIN DE LA CORRECCIÓN ---
 
           const result = await response.json();
 
           if (!response.ok) {
-            // Si la respuesta no es 2xx, muestra el error de la API
-            throw new Error(result.detail || "Error desconocido al iniciar sesión.");
+            // Usamos el mensaje de error que definimos en la API
+            throw new Error(result.error || "Error desconocido al iniciar sesión.");
           }
 
           // ✨ ¡AQUÍ ESTÁ LA MAGIA! ✨
