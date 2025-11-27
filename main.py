@@ -34,6 +34,7 @@ def render(tpl: str, request: Request) -> HTMLResponse:
 # y se le da el alias 'auth_router' para que el resto del código funcione.
 from api.auth import router as auth_router
 from api.agente_soporte import router as agente_router
+from api.support import router as support_router
 from app.middleware.auth_agente import verificar_rol_agente_redirect
 
 # =========================
@@ -43,6 +44,7 @@ from app.middleware.auth_agente import verificar_rol_agente_redirect
 # Como `auth_router` ya es el router, eliminamos el `.router` extra.
 app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
 app.include_router(agente_router, tags=["Agente Soporte"])
+app.include_router(support_router, tags=["Support"])
 # app.include_router(user_router.router, prefix="/api/user", tags=["Usuarios"])
 # ... (Puedes descomentar las otras rutas una vez que el login funcione)
 
