@@ -33,6 +33,8 @@ def render(tpl: str, request: Request) -> HTMLResponse:
 # CORRECCIÓN FINAL: Se importa el objeto 'router' desde el archivo 'api.auth'
 # y se le da el alias 'auth_router' para que el resto del código funcione.
 from api.auth import router as auth_router
+from api.agente_soporte import router as agente_router
+from app.middleware.auth_agente import verificar_rol_agente_redirect
 
 # =========================
 #  RUTAS DE LÓGICA / API
@@ -40,6 +42,7 @@ from api.auth import router as auth_router
 # CORRECCIÓN FINAL: `app.include_router` espera el objeto APIRouter directamente.
 # Como `auth_router` ya es el router, eliminamos el `.router` extra.
 app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
+app.include_router(agente_router, tags=["Agente Soporte"])
 # app.include_router(user_router.router, prefix="/api/user", tags=["Usuarios"])
 # ... (Puedes descomentar las otras rutas una vez que el login funcione)
 
@@ -336,3 +339,66 @@ async def admin_lista_blanca(request: Request):
 @app.get("/admin/promociones", response_class=HTMLResponse)
 async def admin_promociones(request: Request):
     return render("admin-promociones.html", request)
+
+# =========================
+#  PANEL DE AGENTE DE SOPORTE
+# =========================
+@app.get("/agente", response_class=HTMLResponse)
+async def agente_menu(request: Request):
+    # Verificar que el usuario tiene rol de Soporte
+    redirect = await verificar_rol_agente_redirect(request)
+    if redirect:
+        return redirect
+    return render("agente.html", request)
+
+# Dashboard del agente
+@app.get("/agente/dashboard", response_class=HTMLResponse)
+async def agente_dashboard(request: Request):
+    redirect = await verificar_rol_agente_redirect(request)
+    if redirect:
+        return redirect
+    return render("agente-dashboard.html", request)
+
+# Gestión de tickets
+@app.get("/agente/tickets", response_class=HTMLResponse)
+async def agente_tickets(request: Request):
+    redirect = await verificar_rol_agente_redirect(request)
+    if redirect:
+        return redirect
+    return render("agente-tickets.html", request)
+
+@app.get("/agente/mis-tickets", response_class=HTMLResponse)
+async def agente_mis_tickets(request: Request):
+    redirect = await verificar_rol_agente_redirect(request)
+    if redirect:
+        return redirect
+    return render("agente-mis-tickets.html", request)
+
+@app.get("/agente/ticket/{id_ticket}", response_class=HTMLResponse)
+async def agente_ticket_detalle(request: Request, id_ticket: int):
+    redirect = await verificar_rol_agente_redirect(request)
+    if redirect:
+        return redirect
+    return render("agente-ticket-detalle.html", request)
+
+# Gestión de chats
+@app.get("/agente/chats", response_class=HTMLResponse)
+async def agente_chats(request: Request):
+    redirect = await verificar_rol_agente_redirect(request)
+    if redirect:
+        return redirect
+    return render("agente-chats.html", request)
+
+@app.get("/agente/mis-chats", response_class=HTMLResponse)
+async def agente_mis_chats(request: Request):
+    redirect = await verificar_rol_agente_redirect(request)
+    if redirect:
+        return redirect
+    return render("agente-mis-chats.html", request)
+
+@app.get("/agente/chat/{id_chat}", response_class=HTMLResponse)
+async def agente_chat_activo(request: Request, id_chat: int):
+    redirect = await verificar_rol_agente_redirect(request)
+    if redirect:
+        return redirect
+    return render("agente-chat-activo.html", request)
