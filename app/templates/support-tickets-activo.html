@@ -84,7 +84,7 @@
 
         // Color del estado
         let estadoClass = 'estado-abierto';
-        if (ticket.estado === 'Asignado') estadoClass = 'estado-asignado';
+        if (ticket.estado === 'En Proceso') estadoClass = 'estado-en-proceso';
 
         return `
           <div class="ticket-item">
@@ -149,7 +149,7 @@
       color: #2ecc71;
     }
 
-    .estado-asignado {
+    .estado-en-proceso {
       background-color: rgba(52, 152, 219, 0.2);
       color: #3498db;
     }

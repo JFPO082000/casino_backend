@@ -66,12 +66,13 @@
 
           // Guardar datos en localStorage
           localStorage.setItem("userId", result.id_usuario);
+          localStorage.setItem("idRol", result.id_rol);
           localStorage.setItem("userRole", result.rol);
 
           // Redirigir según el rol del usuario
           if (result.rol === 'Administrador' || result.rol === 'Auditor') {
             window.location.href = "/admin";
-          } else if (result.rol === 'Soporte') {
+          } else if (result.rol === 'Agente de Soporte') {
             window.location.href = "/agente";
           } else {
             window.location.href = "/home";
