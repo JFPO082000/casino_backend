@@ -6,7 +6,7 @@ from psycopg2.extras import RealDictCursor
 
 async def verificar_rol_agente(request: Request):
     """
-    Middleware para verificar que el usuario tenga rol 'Soporte'
+    Middleware para verificar que el usuario tenga rol 'Agente de Soporte' (id_rol = 4)
     Retorna el id_usuario si es válido, de lo contrario lanza HTTPException
     """
     # Intentar obtener user_id de las cookies o headers
@@ -30,7 +30,7 @@ async def verificar_rol_agente(request: Request):
             detail="ID de usuario inválido"
         )
     
-    # Verificar en la base de datos que el usuario tenga rol 'Soporte'
+    # Verificar en la base de datos que el usuario tenga id_rol = 4 (Agente de Soporte)
     conn = None
     try:
         conn = db_connect.get_connection()
@@ -42,7 +42,12 @@ async def verificar_rol_agente(request: Request):
         
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         cursor.execute(
-            "SELECT id_usuario, rol, activo FROM Usuario WHERE id_usuario = %s",
+            """
+            SELECT u.id_usuario, u.id_rol, u.activo, r.nombre as rol_nombre
+            FROM Usuario u
+            JOIN Rol r ON u.id_rol = r.id_rol
+            WHERE u.id_usuario = %s
+            """,
             (user_id,)
         )
         usuario = cursor.fetchone()
@@ -60,10 +65,11 @@ async def verificar_rol_agente(request: Request):
                 detail="Usuario inactivo"
             )
         
-        if usuario['rol'] != 'Soporte':
+        # Verificar que sea Agente de Soporte (id_rol = 4)
+        if usuario['id_rol'] != 4:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Acceso denegado: Se requiere rol de Soporte"
+                detail="Acceso denegado: Se requiere rol de Agente de Soporte"
             )
         
         return user_id
@@ -104,13 +110,18 @@ async def verificar_rol_agente_redirect(request: Request):
         
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         cursor.execute(
-            "SELECT id_usuario, rol, activo FROM Usuario WHERE id_usuario = %s",
+            """
+            SELECT u.id_usuario, u.id_rol, u.activo
+            FROM Usuario u
+            WHERE u.id_usuario = %s
+            """,
             (user_id,)
         )
         usuario = cursor.fetchone()
         cursor.close()
         
-        if not usuario or not usuario['activo'] or usuario['rol'] != 'Soporte':
+        # Verificar que el usuario existe, está activo y tiene id_rol = 4 (Agente de Soporte)
+        if not usuario or not usuario['activo'] or usuario['id_rol'] != 4:
             return RedirectResponse(url="/login", status_code=302)
         
         return None  # Todo OK, continuar

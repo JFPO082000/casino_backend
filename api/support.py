@@ -32,10 +32,10 @@ async def api_create_ticket(
         
         cursor = conn.cursor()
 
-        # Insertamos en la tabla 'Soporte' con estado 'Abierto'
+        # Insertamos en la tabla 'Soporte' con estado 'Abierto' usando id_jugador
         cursor.execute(
             """
-            INSERT INTO Soporte (id_usuario, asunto, mensaje, estado, fecha_creacion)
+            INSERT INTO Soporte (id_jugador, asunto, mensaje, estado, fecha_creacion)
             VALUES (%s, %s, %s, 'Abierto', %s)
             """,
             (id_usuario, asunto, mensaje, datetime.now())
@@ -62,7 +62,7 @@ async def api_create_ticket(
 @router.get("/api/support/tickets/active/{id_usuario}")
 async def api_get_active_tickets(id_usuario: int):
     """
-    Ruta para obtener tickets 'Abiertos' o 'Asignados'
+    Ruta para obtener tickets 'Abiertos' o 'En Proceso'
     Llamada por: support-tickets-activo.html
     """
     conn = None
@@ -72,12 +72,12 @@ async def api_get_active_tickets(id_usuario: int):
         
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Buscamos tickets que NO estén 'Cerrados'
+        # Buscamos tickets que NO estén 'Cerrados' usando id_jugador
         cursor.execute(
             """
             SELECT id_ticket, asunto, estado, fecha_creacion
             FROM Soporte
-            WHERE id_usuario = %s AND estado != 'Cerrado'
+            WHERE id_jugador = %s AND estado != 'Cerrado'
             ORDER BY fecha_creacion DESC
             """,
             (id_usuario,)
@@ -106,12 +106,12 @@ async def api_get_ticket_history(id_usuario: int):
         
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Buscamos tickets que SÍ estén 'Cerrados'
+        # Buscamos tickets que SÍ estén 'Cerrados' usando id_jugador
         cursor.execute(
             """
             SELECT id_ticket, asunto, estado, fecha_creacion
             FROM Soporte
-            WHERE id_usuario = %s AND estado = 'Cerrado'
+            WHERE id_jugador = %s AND estado = 'Cerrado'
             ORDER BY fecha_creacion DESC
             """,
             (id_usuario,)
